@@ -1,0 +1,279 @@
+/**
+ * JavaCC template file created by SF JavaCC plugin 1.5.28+ wizard for JavaCC 1.5.0+
+ */
+options
+{
+  static = true;
+}
+
+ PARSER_BEGIN(Control)
+ import java.util.*;
+ public class Control{
+
+ private static class BloqueCondicion{
+ String etqVerdad, etqFalso;
+ }
+ public static void main(String args[]) throws ParseException {
+ ControlTokenManager tm = 
+ new ControlTokenManager(new SimpleCharStream(System.in));
+ tm.SwitchTo(tm.INICIO_LINEA);
+ new Control(tm).gramatica();
+ }
+ private static int actualTmp=0, actualEtq=0;
+ private static String nuevaTmp(){
+ return "tmp"+(++actualTmp);
+ }
+ private static String nuevaEtq(){
+ return "etq"+(++actualEtq);
+ }
+ private static void usarASIG(String s, String e){
+ System.out.println(s+"="+e);
+ }
+ private static String usarOpAritmetico(String e1, String e2, String op){
+ String tmp = nuevaTmp();
+ System.out.println("\t"+tmp+"="+e1+op+e2);
+ return tmp;
+ }
+ private static void usarLabel(String label){
+ System.out.println("label "+ label);
+ }
+ private static void usarGoto(String label){
+ System.out.println("\tgoto "+ label);
+ }
+ private static BloqueCondicion usarOpRelacional(String e1,
+ String e2, 
+ String op){
+ BloqueCondicion blq = new BloqueCondicion();
+ blq.etqVerdad = nuevaEtq();
+ blq.etqFalso = nuevaEtq();
+ System.out.println("\tif "+ e1+op+e2 +" goto "+ blq.etqVerdad);
+ usarGoto(blq.etqFalso);
+ return blq;
+ }
+ private static void intercambiarCondicion(BloqueCondicion blq){
+ String aux = blq.etqVerdad;
+ blq.etqVerdad = blq.etqFalso;
+ blq.etqFalso = blq.etqVerdad;
+ }
+}
+PARSER_END(Control)
+ <DEFAULT, INICIO_LINEA> SKIP : {
+ "b¯&"
+ | "\t"
+ | "\r"
+ | "\n" : INICIO_LINEA 
+ }
+ <INICIO_LINEA> SKIP: {
+ <COMENTARIO: "*" (~["\n"])* "\n">
+ }
+ <DEFAULT, INICIO_LINEA> TOKEN [IGNORE_CASE] : {
+ <NUMERO: (["0"-"9"])+> : DEFAULT
+ | <PUNTOYCOMA: ";"> : DEFAULT
+ }
+ <DEFAULT, INICIO_LINEA> TOKEN : {
+ <ASIG: ":="> : DEFAULT
+ | <DOSPUNTOS: ":"> : DEFAULT
+ | <MAS: "+"> : DEFAULT
+ | <POR: "*"> : DEFAULT
+ | <ENTRE: "/"> : DEFAULT
+ | <MENOS: "-"> : DEFAULT
+ | <LPAREN: "("> : DEFAULT
+ | <RPAREN: ")"> : DEFAULT
+ | <LLLAVE: "{"> : DEFAULT
+ | <RLLAVE: "}"> : DEFAULT
+ | <LCOR: "["> : DEFAULT
+ | <RCOR: "]"> : DEFAULT
+ | <MAYOR: ">"> : DEFAULT
+ | <MENOR: "<"> : DEFAULT
+ | <IGUAL: "="> : DEFAULT
+ | <MAI: ">="> : DEFAULT
+ | <MEI: "<="> : DEFAULT
+ | <DIF: "!="> : DEFAULT
+ | <AND: "AND"> : DEFAULT
+ | <OR: "OR"> : DEFAULT
+ | <NOT: "NOT"> : DEFAULT
+ | <IF: "IF"> : DEFAULT
+ | <WHILE: "WHILE"> : DEFAULT
+ | <REPEAT: "REPEAT"> : DEFAULT
+ | <CASO: "CASO"> : DEFAULT
+ | <THEN: "THEN"> : DEFAULT
+ | <ELSE: "ELSE"> : DEFAULT
+ | <FIN: "FIN"> : DEFAULT
+ | <DO: "DO"> : DEFAULT
+ | <UNTIL: "UNTIL"> : DEFAULT
+ | <CASE: "CASE"> : DEFAULT
+ | <OF: "OF"> : DEFAULT
+ | <OTHERWISE: "OTHERWISE"> : DEFAULT
+ }
+<DEFAULT, INICIO_LINEA> TOKEN [IGNORE_CASE] : {
+ <ID: ["A"-"Z", "_"](["A"-"Z", "0"-"9", "_"])*> : DEFAULT
+ }
+ <DEFAULT, INICIO_LINEA> SKIP : {
+ <ILEGAL: (~[])> { System.out.println("Carácter: "+image+" no esperado.");} 
+ : DEFAULT
+ }
+ /*
+ gramatica ::= ( sentFinalizada )*
+ */
+ void gramatica():{}{
+ (sentFinalizada())*
+ }
+ /*
+ sentFinalizada ::= ID ASIG expr ';' 
+ | IF cond THEN sentFinalizada [ ELSE sentFinalizada ] FIN IF ';'
+ | WHILE cond DO sentFinalizada FIN WHILE ';'
+ | REPEAT sentFinalizada UNTIL cond ';'
+ | '{' ( sentFinalizada )* '}'
+ | CASE expr OF ( CASO expr ':' sentFinalizada )* 
+ [ OTHERWISE sentFinalizada ] FIN CASE ';'
+ | error ';'
+ */
+ void sentFinalizada():{
+ String s;
+ String e, ei;
+ BloqueCondicion c;
+ String etqFinIf, etqInicioWhile, etqInicioRepeat, etqFinalCaso, etqFinCase;
+ }{ 
+ try {
+ (
+ s=id() <ASIG> e=expr() { System.out.println("\t"+s+"="+e); }
+ | <IF> c=cond() <THEN> { usarLabel(c.etqVerdad); }
+ sentFinalizada() { 
+ usarGoto(etqFinIf=nuevaEtq());
+ usarLabel(c.etqFalso);
+ } 
+ [<ELSE> sentFinalizada()] 
+ <FIN> <IF> { usarLabel(etqFinIf); }
+ | <WHILE> { usarLabel(etqInicioWhile=nuevaEtq()); }
+ c=cond() <DO> { usarLabel(c.etqVerdad); }
+ sentFinalizada()
+ <FIN> <WHILE> {
+ usarGoto(etqInicioWhile);
+ usarLabel(c.etqFalso);
+ }
+ | <REPEAT> { usarLabel(etqInicioRepeat=nuevaEtq()); }
+ sentFinalizada()
+ <UNTIL> c=cond() {
+ usarLabel(c.etqFalso);
+ usarGoto(etqInicioRepeat);
+ usarLabel(c.etqVerdad);
+ }
+ | <LLLAVE> gramatica() <RLLAVE>
+ | <CASE> e=expr() <OF> { etqFinCase = nuevaEtq(); }
+ (<CASO> ei=expr() <DOSPUNTOS> { 
+ System.out.println("\tif "+ e+"!="+ei
+ +"goto "+ (etqFinalCaso=nuevaEtq()));
+ }
+ sentFinalizada() { 
+ usarGoto(etqFinCase);
+ usarLabel(etqFinalCaso);
+ }
+ )* 
+ [<OTHERWISE> sentFinalizada()] 
+ <FIN> <CASE> { usarLabel(etqFinCase); }
+ ) <PUNTOYCOMA>
+ }catch(ParseException x){
+ System.out.println(x.toString());
+ Token t;
+ do {
+ t = getNextToken();
+ } while (t.kind != PUNTOYCOMA);
+ }
+ }
+ /*
+ expr ::= term (('+'|'-') term)*
+ */
+ String expr():{
+ String t1, t2;
+ }{
+ t1=term() ( <MAS> t2=term() { t1=usarOpAritmetico(t1, t2, "+"); } 
+ | <MENOS> t2=term() { t1=usarOpAritmetico(t1, t2, "-"); } 
+ )* { return t1; }
+ }
+ /*
+ term ::= fact (('*'|'/') fact)*
+ */
+String term():{
+ String f1, f2;
+ }{
+ f1=fact() ( <POR> f2=fact() { f1=usarOpAritmetico(f1, f2, "*"); }
+ | <ENTRE> f2=fact() { f1=usarOpAritmetico(f1, f2, "/"); } 
+ )* { return f1; }
+ }
+ /*
+ fact ::= ('-')* ( ID | NUMERO | '(' expr ')' ) 
+ */
+ String fact():{
+ String s, e, temporal;
+ boolean negado = false;
+ }{ (<MENOS> {negado = !negado;} )*
+ (
+ s=id() { temporal = s; }
+ | s=numero() { temporal = s; }
+ | <LPAREN> e=expr() <RPAREN> { temporal = e; }
+ ) { if (negado) temporal=usarOpAritmetico("", temporal, "-");
+ return temporal;
+ }
+ }
+ /*
+ cond ::= condTerm (OR condTerm)*
+ */
+ BloqueCondicion cond():{
+ BloqueCondicion c1, c2;
+ }{
+ c1=condTerm() ( <OR> { System.out.println("label "+ c1.etqFalso); }
+ c2=condTerm() {
+ System.out.println("label "+ c1.etqVerdad);
+ System.out.println("\tgoto "+ c2.etqVerdad);
+ c1 = c2;
+ }
+ )* { return c1; }
+ }
+ /*
+ condTerm ::= condFact (AND condFact)*
+ */
+ BloqueCondicion condTerm():{
+ BloqueCondicion c1, c2;
+ }{
+ c1=condFact() ( <AND> { System.out.println("label "+ c1.etqVerdad); }
+ c2=condFact() {
+ System.out.println("label "+ c1.etqFalso);
+ System.out.println("\tgoto "+ c2.etqFalso);
+ c1 = c2;
+ }
+ )* { return c1; }
+ }
+ /*
+ condFact ::= (NOT)* ( condSimple | '[' cond ']' )
+ */
+ BloqueCondicion condFact():{
+ BloqueCondicion c1;
+ boolean negado = false;
+ }{ (<NOT> {negado = !negado;} )*
+ ( c1=condSimple()
+ | <LCOR> c1=cond() <RCOR>
+ ) { if (negado) intercambiarCondicion(c1);
+ return c1;
+ }
+ }
+ /*
+ condSimple ::= expr (('>'|'<'|'='|'>='|'<='|'!=') expr)*
+ */
+ BloqueCondicion condSimple():{
+ String e1, e2;
+ }{
+ e1=expr() (
+ <MAYOR> e2=expr() { return usarOpRelacional(e1, e2, ">"); }
+ | <MENOR> e2=expr() { return usarOpRelacional(e1, e2, "<"); }
+ | <IGUAL> e2=expr() { return usarOpRelacional(e1, e2, "="); }
+ | <MAI> e2=expr() { return usarOpRelacional(e1, e2, ">="); }
+ | <MEI> e2=expr() { return usarOpRelacional(e1, e2, "<="); }
+ | <DIF> e2=expr() { return usarOpRelacional(e1, e2, "!="); }
+ )
+ }
+ String id():{}{
+ <ID> { return token.image; }
+ }
+ String numero():{}{
+ <NUMERO> { return usarOpAritmetico(token.image, "", ""); }
+}
